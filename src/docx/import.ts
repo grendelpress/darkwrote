@@ -25,9 +25,17 @@ export const DEFAULT_META: DocMeta = {
   marginLeft: 1440,
 }
 
+export interface CommentData {
+  id: string
+  author: string
+  date: string
+  text: string
+}
+
 export interface ImportResult {
   doc: JSONContent
   meta: DocMeta
+  comments: CommentData[]
   warnings: string[]
 }
 
@@ -109,6 +117,10 @@ class Importer {
   rels = new Map<string, { target: string; external: boolean }>()
   media = new Map<string, string>() // zip path -> data URL
   warnings: string[] = []
+  comments = new Map<string, CommentData>()
+  /** Comment ranges currently open (they may span paragraphs) */
+  activeComments = new Set<string>()
+  anchoredComments = new Set<string>()
   defaultRun: RunProps = {}
 
   constructor(private zip: JSZip) {}
@@ -124,6 +136,8 @@ class Importer {
     if (numFile) this.readNumbering(parseXml(await numFile.async('string')))
     const relFile = this.zip.file('word/_rels/document.xml.rels')
     if (relFile) this.readRels(parseXml(await relFile.async('string')))
+    const commentsFile = this.zip.file('word/comments.xml')
+    if (commentsFile) this.readComments(parseXml(await commentsFile.async('string')))
     await this.loadMedia()
     return doc
   }
@@ -161,6 +175,26 @@ class Importer {
       const id = wAttr(num, 'numId')
       const abs = wAttr(kid(num, 'abstractNumId'), 'val')
       if (id != null && abs != null && abstracts.has(abs)) this.numbering.set(id, abstracts.get(abs)!)
+    }
+  }
+
+  readComments(xml: Document) {
+    for (const c of kids(xml.documentElement, 'comment')) {
+      const id = wAttr(c, 'id')
+      if (id == null) continue
+      const text = kids(c, 'p')
+        .map((p) =>
+          Array.from(p.getElementsByTagNameNS(W, 't'))
+            .map((t) => t.textContent ?? '')
+            .join(''),
+        )
+        .join('\n')
+      this.comments.set(id, {
+        id,
+        author: wAttr(c, 'author') ?? 'Unknown',
+        date: wAttr(c, 'date') ?? '',
+        text,
+      })
     }
   }
 
@@ -276,6 +310,12 @@ class Importer {
     if (p.vertAlign) marks.push({ type: p.vertAlign })
     if (p.highlight) marks.push({ type: 'highlight', attrs: { color: p.highlight } })
     if (href) marks.push({ type: 'link', attrs: { href } })
+    for (const id of this.activeComments) {
+      if (this.comments.has(id)) {
+        marks.push({ type: 'comment', attrs: { commentId: id } })
+        this.anchoredComments.add(id)
+      }
+    }
     const attrs: Record<string, string> = {}
     if (p.color) attrs.color = p.color
     if (p.font) attrs.fontFamily = p.font
@@ -301,6 +341,12 @@ class Importer {
       switch (el.localName) {
         case 'r':
           this.run(el, base, href, out)
+          break
+        case 'commentRangeStart':
+          this.activeComments.add(wAttr(el, 'id') ?? '')
+          break
+        case 'commentRangeEnd':
+          this.activeComments.delete(wAttr(el, 'id') ?? '')
           break
         case 'hyperlink': {
           const rid = el.getAttributeNS(R, 'id') ?? el.getAttribute('r:id')
@@ -493,6 +539,12 @@ class Importer {
 
     const visit = (el: Element) => {
       switch (el.localName) {
+        case 'commentRangeStart':
+          this.activeComments.add(wAttr(el, 'id') ?? '')
+          break
+        case 'commentRangeEnd':
+          this.activeComments.delete(wAttr(el, 'id') ?? '')
+          break
         case 'p': {
           const { node, list } = this.paragraph(el)
           if (list) addListItem(node, list.level, list.ordered, list.numId)
@@ -550,5 +602,8 @@ export async function importDocx(data: ArrayBuffer | Uint8Array): Promise<Import
   if (!body) throw new Error('The document has no body.')
   const content = imp.blocks(body)
   const doc: JSONContent = { type: 'doc', content: content.length ? content : [{ type: 'paragraph' }] }
-  return { doc, meta: imp.meta(body), warnings: imp.warnings }
+  const comments = [...imp.comments.values()].filter((c) => imp.anchoredComments.has(c.id))
+  const dropped = imp.comments.size - comments.length
+  if (dropped) imp.warnings.push(`${dropped} comment(s) not attached to any text were skipped`)
+  return { doc, meta: imp.meta(body), comments, warnings: imp.warnings }
 }

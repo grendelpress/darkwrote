@@ -12,6 +12,11 @@ Everything runs locally in your browser; files are never uploaded.
   hyperlinks, page size and margins.
 - **Saves `.docx`**: Ctrl+S writes back to the opened file in Chromium browsers (File System Access API);
   elsewhere it downloads a copy.
+- **Comments**: select text and press 💬 (or Ctrl+Alt+M) to add a comment. Existing Word comments are shown in
+  the right-hand panel; click one to jump to its text. Comments are saved back as real Word comments
+  (replies and "resolved" state are not preserved).
+- **Outline**: a left-hand index of the document's headings; click to jump, and the current section is highlighted.
+- **Close** returns to the start screen (it asks first if there are unsaved changes).
 - **Themes**: 6 dark + 4 light built in. *Customize…* lets you duplicate any theme, edit every colour with live
   preview, and export/import themes as JSON. Custom themes are stored in your browser.
 - **Readable on dark themes**: colours authored in the document (e.g. black text, white table shading) are shifted

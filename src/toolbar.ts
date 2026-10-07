@@ -17,7 +17,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string,
   return node
 }
 
-export function buildToolbar(host: HTMLElement, editor: Editor) {
+export function buildToolbar(host: HTMLElement, editor: Editor, onAddComment: () => void) {
   const controls: Control[] = []
   const sep = () => host.append(el('span', { className: 'tb-sep' }))
 
@@ -137,6 +137,7 @@ export function buildToolbar(host: HTMLElement, editor: Editor) {
   button('―', 'Horizontal rule', () => chain().setHorizontalRule().run())
   sep()
 
+  button('💬', 'Add comment to selected text', onAddComment, undefined, () => !editor.state.selection.empty && editor.isEditable)
   button('🔗', 'Link', () => {
     const prev = editor.getAttributes('link').href as string | undefined
     const url = window.prompt('Link address (leave empty to remove)', prev ?? 'https://')

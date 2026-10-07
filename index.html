@@ -13,9 +13,12 @@
       <button id="btn-new" class="btn" title="New blank document">New</button>
       <button id="btn-save" class="btn primary" title="Save (Ctrl+S)">Save</button>
       <button id="btn-saveas" class="btn" title="Download a copy as .docx">Save as…</button>
+      <button id="btn-close" class="btn" title="Close this document">Close</button>
       <span id="doc-name" class="doc-name">Untitled.docx</span>
       <span id="dirty" class="dirty" hidden>● unsaved</span>
       <span class="spacer"></span>
+      <button id="btn-outline" class="btn toggle" title="Show or hide the outline">Outline</button>
+      <button id="btn-comments" class="btn toggle" title="Show or hide comments">Comments</button>
       <label class="theme-pick">Theme
         <select id="theme-select"></select>
       </label>
@@ -23,11 +26,23 @@
       <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
     </header>
     <div id="toolbar" class="toolbar" role="toolbar" aria-label="Formatting"></div>
-    <main class="workspace" id="workspace">
-      <div class="page" id="page">
-        <div id="editor"></div>
-      </div>
-    </main>
+    <div class="layout">
+      <aside id="outline" class="side left" aria-label="Document outline"></aside>
+      <main class="workspace" id="workspace">
+        <div class="empty-state" id="empty">
+          <h1>No document open</h1>
+          <p>Open a Word file, drop one anywhere on this window, or start a blank document.</p>
+          <div class="row">
+            <button id="empty-open" class="btn primary">Open a .docx…</button>
+            <button id="empty-new" class="btn">New document</button>
+          </div>
+        </div>
+        <div class="page" id="page">
+          <div id="editor"></div>
+        </div>
+      </main>
+      <aside id="comments" class="side right" aria-label="Comments"></aside>
+    </div>
     <div id="toast" class="toast" role="status" hidden></div>
     <div id="drop-hint" class="drop-hint" hidden>Drop a .docx file to open it</div>
     <dialog id="theme-dialog" class="dialog"></dialog>

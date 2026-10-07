@@ -37,8 +37,52 @@ select { height: 30px; padding: 0 6px; }
 .tb-color input { width: 20px; height: 20px; padding: 0; border: none; background: none; cursor: pointer; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* ----- layout & sidebars ----- */
+.layout { flex: 1; display: flex; min-height: 0; }
+.side { width: 260px; flex: none; background: var(--surface); overflow: auto; display: none; }
+.side.left { border-right: 1px solid var(--border); }
+.side.right { width: 300px; border-left: 1px solid var(--border); }
+.side.open { display: block; }
+.side-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--border); font-size: 13px; }
+.side-head input { width: 110px; padding: 3px 6px; }
+.side-empty { color: var(--muted); font-size: 13px; padding: 12px; margin: 0; }
+.btn.toggle.on { border-color: var(--accent); color: var(--accent); }
+.outline-list { display: flex; flex-direction: column; padding: 6px 0; }
+.outline-item { text-align: left; background: none; border: none; border-left: 3px solid transparent; color: var(--text); font: inherit; font-size: 13px; padding: 5px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.outline-item:hover { background: var(--paper); }
+.outline-item.active { border-left-color: var(--accent); background: var(--paper); color: var(--accent); font-weight: 600; }
+@media (max-width: 1100px) { .side.open { position: fixed; top: 0; bottom: 0; z-index: 30; margin-top: 90px; box-shadow: 0 0 24px rgba(0,0,0,.4); } .side.right.open { right: 0; } }
+
+/* ----- comments ----- */
+.comment-list { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+.comment { background: var(--paper); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 13px; cursor: pointer; }
+.comment.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.comment.draft { cursor: default; border-color: var(--accent); }
+.comment .meta { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.comment small { color: var(--muted); }
+.comment blockquote { margin: 6px 0; padding-left: 8px; border-left: 3px solid var(--accent); color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+.comment .body { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.comment textarea { width: 100%; resize: vertical; background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 6px; font: inherit; margin: 6px 0; }
+.comment .row { display: flex; gap: 8px; }
+.link-btn { background: none; border: none; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; padding: 0; }
+.link-btn:hover { color: var(--accent); text-decoration: underline; }
+.ProseMirror .dw-comment { background: color-mix(in srgb, var(--accent) 22%, transparent); border-bottom: 2px solid var(--accent); cursor: pointer; }
+.ProseMirror mark .dw-comment, .ProseMirror .dw-comment mark { border-bottom: 2px solid var(--accent); }
+
+/* ----- empty state (no document open) ----- */
+.empty-state { display: none; text-align: center; margin: 15vh auto 0; max-width: 460px; color: var(--muted); }
+.empty-state h1 { color: var(--text); font-size: 24px; margin: 0 0 8px; }
+.empty-state .row { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+.empty-state .btn { padding: 8px 16px; font-size: 14px; }
+body.no-doc .empty-state { display: block; }
+body.no-doc .page { display: none; }
+body.no-doc .toolbar { opacity: 0.4; pointer-events: none; }
+body.no-doc .side { display: none !important; }
+body.no-doc .btn.toggle { display: none; }
+.btn:disabled { opacity: 0.4; cursor: default; }
+
 /* ----- page ----- */
-.workspace { flex: 1; overflow: auto; padding: 28px 16px 80px; }
+.workspace { flex: 1; min-width: 0; overflow: auto; padding: 28px 16px 80px; }
 .page {
   width: var(--page-width); max-width: 100%; min-height: calc(var(--page-width) * 1.294); margin: 0 auto;
   padding: var(--pad-top) var(--pad-right) var(--pad-bottom) var(--pad-left);
@@ -106,3 +150,4 @@ select { height: 30px; padding: 0 6px; }
 .dialog-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 20px 20px; align-items: center; }
 .check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .msg { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+body.no-doc .doc-name, body.no-doc .dirty { display: none; }
