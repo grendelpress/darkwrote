@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en" data-mode="dark" data-adapt="true">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Darkwrote</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23161b22%27/%3E%3Cpath d=%27M8 8h9a8 8 0 010 16H8z%27 fill=%27%2358a6ff%27/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Darkwrote</div>
+      <button id="btn-open" class="btn" title="Open a .docx file (Ctrl+O)">Open</button>
+      <button id="btn-new" class="btn" title="New blank document">New</button>
+      <button id="btn-save" class="btn primary" title="Save (Ctrl+S)">Save</button>
+      <button id="btn-saveas" class="btn" title="Download a copy as .docx">Save as…</button>
+      <span id="doc-name" class="doc-name">Untitled.docx</span>
+      <span id="dirty" class="dirty" hidden>● unsaved</span>
+      <span class="spacer"></span>
+      <label class="theme-pick">Theme
+        <select id="theme-select"></select>
+      </label>
+      <button id="btn-themes" class="btn" title="Create or edit themes">Customize…</button>
+      <input id="file-input" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
+    </header>
+    <div id="toolbar" class="toolbar" role="toolbar" aria-label="Formatting"></div>
+    <main class="workspace" id="workspace">
+      <div class="page" id="page">
+        <div id="editor"></div>
+      </div>
+    </main>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <div id="drop-hint" class="drop-hint" hidden>Drop a .docx file to open it</div>
+    <dialog id="theme-dialog" class="dialog"></dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
