@@ -2,6 +2,9 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  CommentRangeEnd,
+  CommentRangeStart,
+  CommentReference,
   ExternalHyperlink,
   HeadingLevel,
   ImageRun,
@@ -18,7 +21,7 @@ import {
   type ParagraphChild,
 } from 'docx'
 import type { JSONContent } from '@tiptap/core'
-import { DEFAULT_META, type DocMeta } from './import'
+import { DEFAULT_META, type CommentData, type DocMeta } from './import'
 
 type Mark = NonNullable<JSONContent['marks']>[number]
 type Block = Paragraph | Table
@@ -76,6 +79,25 @@ function dataUrlToImage(src: string): { type: 'png' | 'jpg' | 'gif' | 'bmp'; dat
 }
 
 class Exporter {
+  /** Word comment ids are numeric; map from our string ids, only for comments that are anchored in the text. */
+  commentIndex = new Map<string, number>()
+  private remaining = new Map<string, number>()
+  private started = new Set<string>()
+
+  constructor(doc: JSONContent, known: Set<string>) {
+    const count = (n: JSONContent) => {
+      for (const m of n.marks ?? []) {
+        const id = m.type === 'comment' ? String(m.attrs?.commentId) : null
+        if (id && known.has(id)) {
+          if (!this.commentIndex.has(id)) this.commentIndex.set(id, this.commentIndex.size)
+          this.remaining.set(id, (this.remaining.get(id) ?? 0) + 1)
+        }
+      }
+      n.content?.forEach(count)
+    }
+    count(doc)
+  }
+
   inline(nodes: JSONContent[] | undefined, extra: { bold?: boolean; font?: string; size?: number } = {}): ParagraphChild[] {
     const out: ParagraphChild[] = []
     for (const n of nodes ?? []) {
@@ -120,8 +142,27 @@ class Exporter {
           shading: hlHex ? { type: ShadingType.CLEAR, fill: hlHex, color: 'auto' } : undefined,
         })
       })
-    if (link && !link.startsWith('#')) return [new ExternalHyperlink({ link, children: runs })]
-    return runs
+    const body: ParagraphChild[] =
+      link && !link.startsWith('#') ? [new ExternalHyperlink({ link, children: runs })] : runs
+
+    // A comment range opens at its first text node and closes after its last, even across paragraphs.
+    const ids = marks
+      .filter((m) => m.type === 'comment')
+      .map((m) => String(m.attrs?.commentId))
+      .filter((id) => this.commentIndex.has(id))
+    const before: ParagraphChild[] = []
+    const after: ParagraphChild[] = []
+    for (const id of ids) {
+      const idx = this.commentIndex.get(id)!
+      if (!this.started.has(id)) {
+        this.started.add(id)
+        before.push(new CommentRangeStart(idx))
+      }
+      const left = (this.remaining.get(id) ?? 1) - 1
+      this.remaining.set(id, left)
+      if (left === 0) after.push(new CommentRangeEnd(idx), new TextRun({ children: [new CommentReference(idx)] }))
+    }
+    return [...before, ...body, ...after]
   }
 
   image(n: JSONContent): ImageRun | null {
@@ -245,12 +286,35 @@ function numberingConfig() {
   ]
 }
 
-export async function exportDocx(doc: JSONContent, meta: DocMeta = DEFAULT_META): Promise<Blob> {
-  const ex = new Exporter()
+export async function exportDocx(
+  doc: JSONContent,
+  meta: DocMeta = DEFAULT_META,
+  comments: CommentData[] = [],
+): Promise<Blob> {
+  const byId = new Map(comments.map((c) => [c.id, c]))
+  const ex = new Exporter(doc, new Set(byId.keys()))
   const children = (doc.content ?? []).flatMap((n) => ex.block(n))
   const document = new Document({
     creator: 'Darkwrote',
     numbering: { config: numberingConfig() },
+    comments: {
+      children: [...ex.commentIndex].map(([id, index]) => {
+        const c = byId.get(id)!
+        const date = new Date(c.date)
+        return {
+          id: index,
+          author: c.author,
+          initials: c.author
+            .split(/\s+/)
+            .map((w) => w[0] ?? '')
+            .join('')
+            .slice(0, 3)
+            .toUpperCase(),
+          date: Number.isNaN(date.getTime()) ? new Date() : date,
+          children: c.text.split('\n').map((line) => new Paragraph({ children: [new TextRun(line)] })),
+        }
+      }),
+    },
     sections: [
       {
         properties: {

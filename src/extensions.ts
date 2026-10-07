@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core'
+import { Extension, Mark } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
@@ -108,7 +108,24 @@ const SizedImage = Image.extend({
   },
 })
 
+/** Anchors a comment (stored separately, keyed by commentId) to a range of text. Ranges may overlap. */
+export const CommentMark = Mark.create({
+  name: 'comment',
+  inclusive: false,
+  excludes: '',
+  addAttributes() {
+    return { commentId: { default: null, parseHTML: (el) => el.getAttribute('data-comment-id') } }
+  },
+  parseHTML() {
+    return [{ tag: 'span[data-comment-id]' }]
+  },
+  renderHTML({ HTMLAttributes }) {
+    return ['span', { class: 'dw-comment', 'data-comment-id': HTMLAttributes.commentId }, 0]
+  },
+})
+
 export const extensions = [
+  CommentMark,
   StarterKit,
   Underline,
   TextStyle,

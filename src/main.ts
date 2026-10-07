@@ -6,6 +6,8 @@ import { buildToolbar } from './toolbar'
 import { importDocx, DEFAULT_META, type DocMeta } from './docx/import'
 import { exportDocx } from './docx/export'
 import { allThemes, applyTheme, getActiveThemeId, getAdaptColors, setAdaptColors, BUILTIN_THEMES } from './themes'
+import { CommentsPanel } from './comments'
+import { Outline } from './outline'
 import { openThemeEditor, refreshThemeSelect } from './themeEditor'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
@@ -68,10 +70,58 @@ const editor = new Editor({
   element: $('editor'),
   extensions,
   content: '<p></p>',
-  autofocus: 'end',
+  editable: false,
   onUpdate: () => setDirty(true),
 })
-buildToolbar($('toolbar'), editor)
+
+// ---------- sidebars ----------
+const SIDE_KEY = 'darkwrote.sidebars'
+const narrow = window.matchMedia('(max-width: 1100px)').matches
+let sides: { outline: boolean; comments: boolean } = { outline: !narrow, comments: !narrow }
+try {
+  sides = { ...sides, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') }
+} catch {
+  /* use defaults */
+}
+function paintSides() {
+  for (const k of ['outline', 'comments'] as const) {
+    $(k).classList.toggle('open', sides[k])
+    $(`btn-${k}`).classList.toggle('on', sides[k])
+  }
+  try {
+    localStorage.setItem(SIDE_KEY, JSON.stringify(sides))
+  } catch {
+    /* ignore */
+  }
+}
+for (const k of ['outline', 'comments'] as const) {
+  $(`btn-${k}`).addEventListener('click', () => {
+    sides[k] = !sides[k]
+    paintSides()
+  })
+}
+paintSides()
+
+const outline = new Outline($('outline'), editor, $('workspace'))
+const commentsPanel = new CommentsPanel(
+  $('comments'),
+  editor,
+  () => setDirty(true),
+  () => {
+    sides.comments = true
+    paintSides()
+  },
+)
+const addComment = () => commentsPanel.startDraft()
+buildToolbar($('toolbar'), editor, addComment)
+
+// ---------- open / closed state ----------
+function showDocument(open: boolean) {
+  document.body.classList.toggle('no-doc', !open)
+  editor.setEditable(open)
+  for (const id of ['btn-save', 'btn-saveas', 'btn-close']) $<HTMLButtonElement>(id).disabled = !open
+  if (open) editor.commands.focus('start')
+}
 
 function setDirty(v: boolean) {
   dirty = v
@@ -102,12 +152,15 @@ function confirmDiscard(): boolean {
 
 async function loadFile(file: File, newHandle: FsHandle | null) {
   try {
-    const { doc, meta: m, warnings } = await importDocx(await file.arrayBuffer())
+    const { doc, meta: m, comments, warnings } = await importDocx(await file.arrayBuffer())
     editor.commands.setContent(doc, false)
     // a fresh undo history so Ctrl+Z can't undo the import itself
     editor.view.updateState(EditorState.create({ doc: editor.state.doc, plugins: editor.state.plugins }))
     handle = newHandle
     applyMeta(m)
+    commentsPanel.setComments(comments)
+    outline.rebuild()
+    showDocument(true)
     dirty = false
     setName(file.name)
     toast(warnings.length ? `Opened with ${warnings.length} warning(s): ${warnings[0]}` : `Opened ${file.name}`)
@@ -131,7 +184,7 @@ async function openFile() {
 }
 
 async function build(): Promise<Blob> {
-  return exportDocx(editor.getJSON(), meta)
+  return exportDocx(editor.getJSON(), meta, commentsPanel.anchoredComments())
 }
 
 function download(blob: Blob, name: string) {
@@ -170,13 +223,28 @@ async function save(forceAs = false) {
 $('btn-open').addEventListener('click', openFile)
 $('btn-save').addEventListener('click', () => save())
 $('btn-saveas').addEventListener('click', () => save(true))
-$('btn-new').addEventListener('click', () => {
-  if (!confirmDiscard()) return
+function resetDocument(open: boolean) {
   editor.commands.setContent('<p></p>', false)
+  editor.view.updateState(EditorState.create({ doc: editor.state.doc, plugins: editor.state.plugins }))
   handle = null
   applyMeta({ ...DEFAULT_META })
+  commentsPanel.setComments([])
+  outline.rebuild()
+  showDocument(open)
   dirty = false
   setName('Untitled.docx')
+}
+const newDocument = () => {
+  if (confirmDiscard()) resetDocument(true)
+}
+$('btn-new').addEventListener('click', newDocument)
+$('empty-new').addEventListener('click', newDocument)
+$('empty-open').addEventListener('click', openFile)
+$('btn-close').addEventListener('click', () => {
+  if (confirmDiscard()) {
+    resetDocument(false)
+    toast('Document closed')
+  }
 })
 $<HTMLInputElement>('file-input').addEventListener('change', (e) => {
   const input = e.target as HTMLInputElement
@@ -194,6 +262,9 @@ document.addEventListener('keydown', (e) => {
   } else if (k === 'o') {
     e.preventDefault()
     void openFile()
+  } else if (k === 'm' && e.altKey && editor.isEditable) {
+    e.preventDefault()
+    addComment()
   }
 })
 
@@ -223,4 +294,4 @@ window.addEventListener('drop', (e) => {
   if (file && confirmDiscard()) void loadFile(file, null)
 })
 
-setName(fileName)
+resetDocument(false)

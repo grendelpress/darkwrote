@@ -89,6 +89,31 @@ describe('docx round trip', () => {
     expect(img.attrs).toMatchObject({ width: 40, height: 20 })
   })
 
+  it('round-trips comments, including ranges that span paragraphs and overlap', async () => {
+    const c = (id: string) => ({ type: 'comment', attrs: { commentId: id } })
+    const doc: JSONContent = {
+      type: 'doc',
+      content: [
+        { type: 'paragraph', content: [{ type: 'text', text: 'plain ' }, { type: 'text', text: 'one', marks: [c('a')] }, { type: 'text', text: 'both', marks: [c('a'), c('b')] }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'two', marks: [c('a')] }, { type: 'text', text: 'after' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'orphan', marks: [c('gone')] }] },
+      ],
+    }
+    const comments = [
+      { id: 'a', author: 'Ada Lovelace', date: '2024-05-01T10:00:00.000Z', text: 'First\nsecond line' },
+      { id: 'b', author: 'Bob', date: '2024-05-02T10:00:00.000Z', text: 'Overlap' },
+    ]
+    const blob = await exportDocx(doc, undefined, comments)
+    const { doc: out, comments: got } = await importDocx(await blob.arrayBuffer())
+    expect(got.map((x) => [x.author, x.text])).toEqual([['Ada Lovelace', 'First\nsecond line'], ['Bob', 'Overlap']])
+    const marked = (id: string) =>
+      out.content!.flatMap((p) => p.content ?? []).filter((n) => n.marks?.some((m) => m.type === 'comment' && m.attrs!.commentId === got.find((g) => g.text.startsWith(id))!.id)).map((n) => n.text)
+    expect(marked('First')).toEqual(['one', 'both', 'two'])
+    expect(marked('Overlap')).toEqual(['both'])
+    // unanchored mark ("gone") has no comment definition and must not produce a dangling range
+    expect(JSON.stringify(out)).not.toContain('orphan"' + ',"marks":[{"type":"comment"')
+  })
+
   it('keeps page geometry', async () => {
     const blob = await exportDocx({ type: 'doc', content: [{ type: 'paragraph' }] }, {
       pageWidth: 11906, pageHeight: 16838, marginTop: 1000, marginRight: 900, marginBottom: 1000, marginLeft: 900,
