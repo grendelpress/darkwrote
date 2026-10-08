@@ -29,14 +29,27 @@ export interface SelectionActions {
   comment: (r: Range) => void
 }
 
+interface Pinned {
+  pm: Range
+  dom: globalThis.Range
+}
+
+const HIGHLIGHT_NAME = 'dw-pending'
+
 /**
- * Bottom action bar for read-only mode. It sits away from the text so it never collides with Android's own
- * selection handles / context menu, and rides above the on-screen keyboard through the --kb CSS variable.
+ * Action bar for read-only mode.
+ *
+ * Android (and Samsung's One UI in particular) shows its own floating Copy/Share/Translate menu on a long
+ * press, and a web page cannot turn that menu off. So this bar is built to coexist with it:
+ *  - it sits on the opposite side of the screen from the selection (top if the text is low, bottom if high),
+ *    so the system menu, which hugs the selection, doesn't cover it;
+ *  - the selected passage is "pinned": it keeps its own highlight and the bar stays up even after the
+ *    system selection is dismissed, so you can tap away from Samsung's menu without losing your place.
+ * It also rides above the on-screen keyboard through the --kb CSS variable.
  */
 export class SelectionBar {
-  private last: Range | null = null
+  private pinned: Pinned | null = null
   private timer = 0
-  private pressing = false
 
   constructor(
     private host: HTMLElement,
@@ -55,11 +68,9 @@ export class SelectionBar {
       // keep the text selection alive while the button is pressed
       b.addEventListener('pointerdown', (e) => {
         e.preventDefault()
-        this.pressing = true
-        window.setTimeout(() => (this.pressing = false), 600)
       })
       b.addEventListener('click', () => {
-        const r = domSelectionRange(this.editor) ?? this.last
+        const r = domSelectionRange(this.editor) ?? this.pinned?.pm
         if (!r) return
         fn(r)
         this.finish()
@@ -78,6 +89,15 @@ export class SelectionBar {
         void navigator.clipboard?.writeText(text).catch(() => undefined)
       }),
     )
+    const close = document.createElement('button')
+    close.type = 'button'
+    close.className = 'close'
+    close.textContent = '✕'
+    close.title = 'Dismiss'
+    close.setAttribute('aria-label', 'Dismiss')
+    close.addEventListener('pointerdown', (e) => e.preventDefault())
+    close.addEventListener('click', () => this.finish())
+    host.append(close)
     document.addEventListener('selectionchange', () => {
       window.clearTimeout(this.timer)
       this.timer = window.setTimeout(() => this.update(), 120)
@@ -85,19 +105,44 @@ export class SelectionBar {
   }
 
   private update() {
-    const r = this.active() ? domSelectionRange(this.editor) : null
-    if (!r && this.pressing) return
-    if (r) this.last = r
-    this.host.hidden = !r
+    if (!this.active()) return this.hide()
+    const r = domSelectionRange(this.editor)
+    if (r) {
+      const sel = window.getSelection()!
+      this.pinned = { pm: r, dom: sel.getRangeAt(0).cloneRange() }
+      this.paintPinned()
+      this.place()
+      this.host.hidden = false
+    }
+    // No selection any more (e.g. the system menu was dismissed): keep the pinned passage and the bar.
+  }
+
+  /** Our own highlight for the pinned passage, since the system selection may be gone. */
+  private paintPinned() {
+    const api = (window as unknown as { CSS?: { highlights?: Map<string, unknown> }; Highlight?: new (...r: globalThis.Range[]) => unknown }).CSS?.highlights
+    const Hl = (window as unknown as { Highlight?: new (...r: globalThis.Range[]) => unknown }).Highlight
+    if (api && Hl) {
+      if (this.pinned) api.set(HIGHLIGHT_NAME, new Hl(this.pinned.dom))
+      else api.delete(HIGHLIGHT_NAME)
+    }
+  }
+
+  /** Put the bar on the side of the screen away from the selection so the system menu can't cover it. */
+  private place() {
+    if (!this.pinned) return
+    const rect = this.pinned.dom.getBoundingClientRect()
+    const low = rect.top + rect.height / 2 > window.innerHeight * 0.5
+    this.host.classList.toggle('top', low)
   }
 
   private finish() {
     window.getSelection()?.removeAllRanges()
-    this.last = null
-    this.host.hidden = true
+    this.hide()
   }
 
   hide() {
+    this.pinned = null
+    this.paintPinned()
     this.host.hidden = true
   }
 }
