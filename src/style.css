@@ -316,3 +316,8 @@ body.reading .ProseMirror :where(pre, code) { font-family: ui-monospace, Consola
   .toast { top: calc(60px + env(safe-area-inset-top, 0px)); bottom: auto; }
 }
 .dialog { overflow: auto; }
+
+/* selection bar: sits on the far side from the selection; pinned passage keeps a highlight */
+.selbar.top { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 64px); }
+.selbar .close { min-width: 44px; padding: 0; background: transparent; border-color: transparent; color: var(--muted); }
+::highlight(dw-pending) { background-color: color-mix(in srgb, var(--accent) 38%, transparent); color: inherit; }

@@ -37,6 +37,10 @@ Any static host works too: run `npm install && npm run build` and upload the `di
   **Aa** sets text size, font and line spacing. **✎ Edit** switches to editing (**📖 Read** switches back).
 - **Long-press a word and drag the handles** to select. A bar appears at the bottom with four highlight colours,
   *Remove highlight*, **Comment**, and **Copy**. The comment box sits above the on-screen keyboard.
+- **Samsung's own menu:** a long press also pops up Samsung's Copy/Share/Translate menu. A web app can't switch that
+  off, so Darkwrote works alongside it: our bar appears on the opposite side of the screen from your selection,
+  and the passage stays marked (and the bar stays up) even if you dismiss Samsung's menu by tapping elsewhere.
+  Tap **✕** on our bar when you're done.
 - Tap highlighted/commented text to open that comment. The outline button (☷) jumps by heading;
   the 💬 button lists all comments.
 - Notes, highlights, edits and your reading position are **saved automatically on the phone**, even if Android
