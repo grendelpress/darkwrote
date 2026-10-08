@@ -41,8 +41,7 @@ const HIGHLIGHT_NAME = 'dw-pending'
  *
  * Android (and Samsung's One UI in particular) shows its own floating Copy/Share/Translate menu on a long
  * press, and a web page cannot turn that menu off. So this bar is built to coexist with it:
- *  - it sits on the opposite side of the screen from the selection (top if the text is low, bottom if high),
- *    so the system menu, which hugs the selection, doesn't cover it;
+ *  - it is always docked at the top of the screen, under the header;
  *  - the selected passage is "pinned": it keeps its own highlight and the bar stays up even after the
  *    system selection is dismissed, so you can tap away from Samsung's menu without losing your place.
  * It also rides above the on-screen keyboard through the --kb CSS variable.
@@ -111,7 +110,6 @@ export class SelectionBar {
       const sel = window.getSelection()!
       this.pinned = { pm: r, dom: sel.getRangeAt(0).cloneRange() }
       this.paintPinned()
-      this.place()
       this.host.hidden = false
     }
     // No selection any more (e.g. the system menu was dismissed): keep the pinned passage and the bar.
@@ -125,14 +123,6 @@ export class SelectionBar {
       if (this.pinned) api.set(HIGHLIGHT_NAME, new Hl(this.pinned.dom))
       else api.delete(HIGHLIGHT_NAME)
     }
-  }
-
-  /** Put the bar on the side of the screen away from the selection so the system menu can't cover it. */
-  private place() {
-    if (!this.pinned) return
-    const rect = this.pinned.dom.getBoundingClientRect()
-    const low = rect.top + rect.height / 2 > window.innerHeight * 0.5
-    this.host.classList.toggle('top', low)
   }
 
   private finish() {
