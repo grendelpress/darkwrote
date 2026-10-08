@@ -152,6 +152,7 @@ export function applyTheme(theme: Theme) {
   for (const [k, v] of Object.entries(theme.colors)) root.style.setProperty(`--${k}`, v)
   root.dataset.mode = theme.mode
   root.style.colorScheme = theme.mode
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.colors.surface)
   writeStorage(ACTIVE_KEY, theme.id)
 }
 

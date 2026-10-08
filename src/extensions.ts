@@ -35,7 +35,8 @@ export const FontSize = Extension.create({
           fontSize: {
             default: null,
             parseHTML: (el) => el.style.fontSize || null,
-            renderHTML: (attrs) => (attrs.fontSize ? { style: `font-size: ${attrs.fontSize}` } : {}),
+            // --dw-fs lets reading mode scale authored sizes with the reader's text-size setting
+            renderHTML: (attrs) => (attrs.fontSize ? { style: `font-size: ${attrs.fontSize}; --dw-fs: ${attrs.fontSize}` } : {}),
           },
         },
       },
@@ -124,7 +125,35 @@ export const CommentMark = Mark.create({
   },
 })
 
+/** Remembers which source .docx paragraph a node came from (used to place annotations in the original file). */
+const SourceParagraph = Extension.create({
+  name: 'sourceParagraph',
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading'],
+        attributes: { srcPara: { default: null, rendered: false, keepOnSplit: false } },
+      },
+    ]
+  },
+})
+
+/** Highlights made by the reader (as opposed to ones authored in the Word file) are annotations. */
+const AnnotatedHighlight = Highlight.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      user: {
+        default: null,
+        parseHTML: (el) => (el.getAttribute('data-user') ? true : null),
+        renderHTML: (attrs) => (attrs.user ? { 'data-user': '1' } : {}),
+      },
+    }
+  },
+})
+
 export const extensions = [
+  SourceParagraph,
   CommentMark,
   StarterKit,
   Underline,
@@ -132,7 +161,7 @@ export const extensions = [
   ThemedColor,
   FontFamily,
   FontSize,
-  Highlight.configure({ multicolor: true }),
+  AnnotatedHighlight.configure({ multicolor: true }),
   Subscript,
   Superscript,
   TextAlign.configure({ types: ['heading', 'paragraph'] }),

@@ -30,6 +30,8 @@ export interface CommentData {
   author: string
   date: string
   text: string
+  /** True for comments that already exist in the source .docx (they are not re-added by annotated export). */
+  imported?: boolean
 }
 
 export interface ImportResult {
@@ -121,6 +123,8 @@ class Importer {
   /** Comment ranges currently open (they may span paragraphs) */
   activeComments = new Set<string>()
   anchoredComments = new Set<string>()
+  /** Index of every w:p in document order; paragraph nodes remember it so annotations can be mapped back to the source XML. */
+  paraIndex = new Map<Element, number>()
   defaultRun: RunProps = {}
 
   constructor(private zip: JSZip) {}
@@ -129,6 +133,7 @@ class Importer {
     const docFile = this.zip.file('word/document.xml')
     if (!docFile) throw new Error('Not a valid .docx file (word/document.xml is missing).')
     const doc = parseXml(await docFile.async('string'))
+    Array.from(doc.getElementsByTagNameNS(W, 'p')).forEach((p, i) => this.paraIndex.set(p, i))
 
     const stylesFile = this.zip.file('word/styles.xml')
     if (stylesFile) this.readStyles(parseXml(await stylesFile.async('string')))
@@ -194,6 +199,7 @@ class Importer {
         author: wAttr(c, 'author') ?? 'Unknown',
         date: wAttr(c, 'date') ?? '',
         text,
+        imported: true,
       })
     }
   }
@@ -244,6 +250,9 @@ class Importer {
   }
 
   headingLevel(styleId: string | null): number | null {
+    // Built-in ids work even when styles.xml is missing or incomplete
+    const direct = /^heading(\d)$/i.exec(styleId ?? '')
+    if (direct) return Math.min(6, Math.max(1, Number(direct[1])))
     for (const s of this.styleChain(styleId).reverse()) {
       const m = /^heading\s*(\d)$/i.exec(s.name) ?? /^heading(\d)$/i.exec(s.id)
       if (m) return Math.min(6, Math.max(1, Number(m[1])))
@@ -458,6 +467,7 @@ class Importer {
       ? { type: 'heading', attrs: { level } }
       : { type: 'paragraph' }
     if (textAlign) node.attrs = { ...(node.attrs ?? {}), textAlign }
+    node.attrs = { ...(node.attrs ?? {}), srcPara: this.paraIndex.get(p) ?? null }
     if (content.length) node.content = content
 
     // numbering (direct or via style)

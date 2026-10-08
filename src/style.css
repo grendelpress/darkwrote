@@ -11,7 +11,8 @@ html[data-mode="light"][data-adapt="true"] { --text-lmin: 0; --text-lmax: 0.4; -
 
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
-body { display: flex; flex-direction: column; background: var(--bg); color: var(--text); }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { display: flex; flex-direction: column; height: 100dvh; background: var(--bg); color: var(--text); touch-action: manipulation; overscroll-behavior: none; }
 
 /* ----- chrome ----- */
 .topbar, .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
@@ -51,7 +52,6 @@ select { height: 30px; padding: 0 6px; }
 .outline-item { text-align: left; background: none; border: none; border-left: 3px solid transparent; color: var(--text); font: inherit; font-size: 13px; padding: 5px 10px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .outline-item:hover { background: var(--paper); }
 .outline-item.active { border-left-color: var(--accent); background: var(--paper); color: var(--accent); font-weight: 600; }
-@media (max-width: 1100px) { .side.open { position: fixed; top: 0; bottom: 0; z-index: 30; margin-top: 90px; box-shadow: 0 0 24px rgba(0,0,0,.4); } .side.right.open { right: 0; } }
 
 /* ----- comments ----- */
 .comment-list { padding: 10px; display: flex; flex-direction: column; gap: 10px; }
@@ -151,3 +151,168 @@ body.no-doc .btn.toggle { display: none; }
 .check { display: flex; align-items: center; gap: 6px; font-size: 13px; }
 .msg { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
 body.no-doc .doc-name, body.no-doc .dirty { display: none; }
+
+/* =====================================================================
+   Menu, mode toggle, popovers
+   ===================================================================== */
+.menu { display: contents; }
+.menu-toggle { display: none; }
+.view-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+body.no-doc .view-actions, body.no-doc #btn-readset { display: none; }
+body:not(.reading) #btn-readset { display: none; }
+.popover { position: fixed; top: 54px; right: 12px; z-index: 45; width: min(320px, calc(100vw - 24px)); background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 14px; box-shadow: 0 8px 32px rgba(0,0,0,.45); }
+.popover h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.popover .row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.popover input[type="range"] { flex: 1; accent-color: var(--accent); height: 28px; }
+.popover .seg { display: flex; flex: 1; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.popover .seg button { flex: 1; background: var(--paper); color: var(--text); border: none; border-right: 1px solid var(--border); padding: 9px 4px; font: inherit; font-size: 13px; cursor: pointer; }
+.popover .seg button:last-child { border-right: none; }
+.popover .seg button.on { background: var(--accent); color: var(--bg); font-weight: 600; }
+.popover .label { width: 62px; font-size: 13px; color: var(--muted); }
+.popover .readout { width: 44px; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+
+/* =====================================================================
+   Reading mode: reflowing text at any screen width
+   ===================================================================== */
+:root { --read-scale: 1; --read-line: 1.55; --kb: 0px; }
+body.reading .toolbar { display: none; }
+body.reading .workspace { background: var(--paper); padding: 0; }
+body.reading .page {
+  width: 100%; max-width: 46rem; min-height: 100%; margin: 0 auto; border: none; box-shadow: none; background: transparent;
+  padding: 24px 22px calc(45vh + var(--kb));
+}
+body.reading .ProseMirror { --rs: calc(var(--read-scale) * 1.1); font-size: calc(11pt * var(--rs)); line-height: var(--read-line); min-height: 0; }
+body.reading .ProseMirror p { margin: 0 0 0.75em; min-height: 0; }
+body.reading .ProseMirror p:empty, body.reading .ProseMirror p:has(> br.ProseMirror-trailingBreak:only-child) { margin-bottom: 0.4em; }
+body.reading .ProseMirror h1 { font-size: 1.7em; } body.reading .ProseMirror h2 { font-size: 1.4em; }
+body.reading .ProseMirror h3 { font-size: 1.2em; } body.reading .ProseMirror h4,
+body.reading .ProseMirror h5, body.reading .ProseMirror h6 { font-size: 1.05em; }
+body.reading .ProseMirror h1, body.reading .ProseMirror h2, body.reading .ProseMirror h3 { margin: 1.3em 0 0.4em; }
+/* sizes authored in Word follow the reader's text-size setting, with a cap so a 48pt title can't overflow a phone */
+body.reading .ProseMirror [style*="--dw-fs"] { font-size: min(calc(var(--dw-fs) * var(--rs)), calc(2.2 * 11pt * var(--rs))); }
+body.reading .ProseMirror ul, body.reading .ProseMirror ol { padding-left: 1.6em; margin-bottom: 0.75em; }
+body.reading .ProseMirror blockquote { margin-left: 0.5em; }
+body.reading .ProseMirror table { display: block; overflow-x: auto; table-layout: auto; width: max-content; max-width: 100%; -webkit-overflow-scrolling: touch; }
+body.reading .ProseMirror td, body.reading .ProseMirror th { min-width: 6em; }
+body.reading .ProseMirror img { max-width: 100%; height: auto; }
+body.reading .ProseMirror pre { overflow-x: auto; }
+body.reading .ProseMirror { -webkit-user-select: text; user-select: text; caret-color: transparent; cursor: text; }
+body.reading[data-read-font="serif"] .ProseMirror,
+body.reading[data-read-font="serif"] .ProseMirror :where(span, p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote) { font-family: Georgia, "Noto Serif", "Droid Serif", serif !important; }
+body.reading[data-read-font="sans"] .ProseMirror,
+body.reading[data-read-font="sans"] .ProseMirror :where(span, p, h1, h2, h3, h4, h5, h6, li, td, th, blockquote) { font-family: system-ui, Roboto, "Noto Sans", sans-serif !important; }
+body.reading .ProseMirror :where(pre, code) { font-family: ui-monospace, Consolas, "Courier New", monospace !important; }
+.ProseMirror { font-family: Calibri, Carlito, Roboto, "Segoe UI", sans-serif; }
+
+/* =====================================================================
+   Selection bar & comment composer
+   ===================================================================== */
+.selbar {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 38;
+  bottom: calc(var(--kb) + env(safe-area-inset-bottom, 0px) + 14px);
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; max-width: calc(100vw - 16px);
+  background: var(--surface); border: 1px solid var(--accent); border-radius: 14px; box-shadow: 0 6px 28px rgba(0,0,0,.5);
+}
+.selbar button { min-height: 44px; min-width: 44px; padding: 0 12px; background: var(--paper); color: var(--text); border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 14px; cursor: pointer; }
+.selbar button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+.selbar .swatch { min-width: 40px; width: 40px; padding: 0; border-width: 2px; }
+.selbar .sep { width: 1px; align-self: stretch; background: var(--border); }
+.composer {
+  position: fixed; left: 0; right: 0; z-index: 60; bottom: var(--kb); padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-top: 2px solid var(--accent); border-radius: 14px 14px 0 0; box-shadow: 0 -8px 30px rgba(0,0,0,.5);
+  max-height: 60dvh; overflow: auto;
+}
+.composer .comment { border: none; background: transparent; padding: 0; }
+.composer textarea { font-size: 16px; min-height: 84px; }
+.composer .btn { min-height: 44px; padding: 0 18px; }
+.scrim { position: fixed; inset: 0; z-index: 29; background: rgba(0,0,0,.55); }
+.side-close { display: none; }
+.toast .act { margin-left: 12px; background: none; border: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; padding: 4px 6px; }
+.toast { bottom: calc(var(--kb) + env(safe-area-inset-bottom, 0px) + 84px); z-index: 70; display: flex; align-items: center; }
+
+/* ----- recent documents ----- */
+.recent { margin: 28px auto 0; text-align: left; max-width: 460px; }
+.recent h2 { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin: 0 0 8px; }
+.recent-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+.recent-item:hover { border-color: var(--accent); }
+.recent-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-item small { display: block; color: var(--muted); }
+.recent-item .x { color: var(--muted); padding: 6px 10px; border-radius: 6px; }
+.recent-item .x:hover { color: #f85149; }
+.bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+
+/* ----- export dialog ----- */
+.export-opt { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-top: 1px solid var(--border); }
+.export-opt .info { flex: 1; min-width: 0; }
+.export-opt strong { display: block; font-size: 14px; }
+.export-opt small { color: var(--muted); font-size: 12px; line-height: 1.4; display: block; margin-top: 2px; }
+.export-opt .btns { display: flex; gap: 8px; flex: none; }
+.export-opt.disabled { opacity: .5; }
+.export-note { padding: 8px 20px 0; color: var(--muted); font-size: 13px; }
+.export-warn { margin: 0 20px 12px; padding: 8px 10px; border: 1px solid #d29922; border-radius: 8px; font-size: 12px; color: var(--text); }
+
+/* =====================================================================
+   Compact screens (phones, the Fold's cover screen and unfolded display)
+   ===================================================================== */
+@media (max-width: 899px) {
+  .topbar { position: relative; flex-wrap: nowrap; gap: 6px; padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px; }
+  .brand { display: none; }
+  .menu-toggle { display: inline-block; flex: none; }
+  .doc-name { flex: 1; min-width: 0; margin: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .spacer, .dirty { display: none; }
+  .menu { display: none; position: absolute; top: 100%; left: 8px; right: 8px; z-index: 50; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 10px 36px rgba(0,0,0,.55); }
+  body.menu-open .menu { display: flex; }
+  .menu .btn { min-height: 46px; text-align: left; }
+  .theme-pick { justify-content: space-between; }
+  .theme-pick select { flex: 1; max-width: 62%; }
+  .view-actions { flex-wrap: nowrap; flex: none; }
+  .view-actions .btn { padding: 0 10px; min-height: 40px; }
+  #btn-outline, #btn-comments { font-size: 0; padding: 0; width: 40px; position: relative; }
+  #btn-outline::before { content: '☷'; font-size: 18px; } #btn-comments::before { content: '💬'; font-size: 16px; }
+  body.no-doc .brand { display: block; }
+
+  .layout { position: relative; }
+  .side { position: fixed; top: 0; bottom: 0; z-index: 30; display: none; width: min(88vw, 340px); padding-top: env(safe-area-inset-top, 0px); }
+  .side.right { right: 0; width: min(94vw, 400px); } .side.left { left: 0; }
+  .side.open { display: block; box-shadow: 0 0 40px rgba(0,0,0,.6); }
+  .side-head { padding: 12px; }
+  .side-close { display: inline-block; background: none; border: none; color: var(--text); font-size: 20px; width: 44px; height: 44px; cursor: pointer; }
+  .outline-item { padding: 12px 14px; font-size: 15px; }
+  .comment { font-size: 14px; }
+  .comment .row .link-btn { font-size: 14px; padding: 10px 8px; }
+  body.reading .page { padding: 16px 16px calc(45vh + var(--kb)); }
+  body:not(.reading) .page { width: 100%; min-height: 0; padding: 16px 14px calc(76px + var(--kb)); }
+  body:not(.reading) .workspace { padding: 0; }
+  body:not(.reading) .toolbar {
+    position: fixed; left: 0; right: 0; bottom: var(--kb); z-index: 35; flex-wrap: nowrap; overflow-x: auto; gap: 6px;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--border); border-bottom: none; -webkit-overflow-scrolling: touch;
+  }
+  body:not(.reading) .toolbar > * { flex: none; }
+  body.no-doc .toolbar { display: none; }
+  .popover { top: 56px; right: 8px; }
+  .dialog-body { padding: 14px; }
+  .export-opt { flex-direction: column; align-items: stretch; }
+  .export-opt .btns .btn { flex: 1; min-height: 44px; }
+  .empty-state { margin-top: 8vh; padding: 0 16px; }
+}
+@media (max-width: 899px) { body.side-open .scrim { display: block; } }
+@media (pointer: coarse) {
+  .btn { min-height: 40px; }
+  .tb-btn { min-width: 44px; height: 44px; }
+  .tb-color { height: 44px; }
+  select { height: 44px; font-size: 16px; }
+  .dialog select, .dialog input[type="text"] { font-size: 16px; }
+  .link-btn { min-height: 36px; }
+  .ProseMirror { font-size: max(11pt, 16px); }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+
+/* narrow screens: let the selection bar wrap instead of overflowing, and keep toasts clear of bottom sheets */
+.selbar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); }
+@media (max-width: 899px) {
+  .selbar .swatch { min-width: 40px; width: 40px; }
+  .selbar .sep { display: none; }
+  .toast { top: calc(60px + env(safe-area-inset-top, 0px)); bottom: auto; }
+}
+.dialog { overflow: auto; }

@@ -31,10 +31,12 @@ function newId(): string {
 /** Sidebar listing the document's comments, with add / edit / delete and click-to-locate. */
 export class CommentsPanel {
   private store = new Map<string, CommentData>()
-  private draft: { from: number; to: number; quote: string } | null = null
+  private draft: { from: number; to: number; quote: string; text?: string } | null = null
+  private composer: HTMLElement | null
   private editing: string | null = null
   private activeId: string | null = null
   private raf = 0
+  private lastSig = ''
   private list: HTMLElement
   private nameInput: HTMLInputElement
 
@@ -43,7 +45,11 @@ export class CommentsPanel {
     private editor: Editor,
     private onChange: () => void,
     private reveal: () => void,
+    /** On small screens the new-comment box lives in this bottom sheet, above the on-screen keyboard */
+    composerHost: HTMLElement | null = null,
+    private isCompact: () => boolean = () => false,
   ) {
+    this.composer = composerHost
     this.nameInput = h('input', { type: 'text', value: getAuthor(), title: 'Name shown on your comments', placeholder: 'Your name' })
     this.nameInput.addEventListener('change', () => {
       try {
@@ -57,7 +63,17 @@ export class CommentsPanel {
 
     editor.on('update', () => this.schedule())
     editor.on('selectionUpdate', () => this.syncSelection())
-    editor.view.dom.addEventListener('click', () => queueMicrotask(() => this.syncSelection()))
+    editor.view.dom.addEventListener('click', (e) => {
+      // tapping commented text opens that comment (works in read-only mode, where there is no caret)
+      const hit = (e.target as Element | null)?.closest?.('.dw-comment') as HTMLElement | null
+      const id = hit?.dataset.commentId
+      if (id && this.anchors().has(id) && !window.getSelection()?.toString()) {
+        this.activeId = id
+        this.reveal()
+        this.render()
+        this.list.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ block: 'nearest' })
+      } else queueMicrotask(() => this.syncSelection())
+    })
     this.render()
   }
 
@@ -75,19 +91,25 @@ export class CommentsPanel {
     return [...this.store.values()].filter((c) => anchors.has(c.id))
   }
 
-  hasSelection(): boolean {
-    return !this.editor.state.selection.empty
+  /** Every known comment, including ones whose text was just deleted (Undo can bring them back). */
+  allComments(): CommentData[] {
+    return [...this.store.values()]
+  }
+
+  /** After the comments have been written into the original file they count as part of it. */
+  markAllImported() {
+    for (const c of this.store.values()) c.imported = true
   }
 
   // ----- actions -----
 
-  startDraft() {
-    const { from, to } = this.editor.state.selection
+  startDraft(range?: { from: number; to: number } | null) {
+    const { from, to } = range ?? this.editor.state.selection
     if (from === to) return
     this.draft = { from, to, quote: this.editor.state.doc.textBetween(from, to, ' ') }
-    this.reveal()
+    if (!this.isCompact()) this.reveal()
     this.render()
-    this.list.querySelector<HTMLTextAreaElement>('.draft textarea')?.focus()
+    ;(this.composer ?? this.list).querySelector<HTMLTextAreaElement>('.draft textarea')?.focus()
   }
 
   private commitDraft(text: string) {
@@ -157,11 +179,12 @@ export class CommentsPanel {
   }
 
   private schedule() {
-    cancelAnimationFrame(this.raf)
-    this.raf = requestAnimationFrame(() => {
+    window.clearTimeout(this.raf)
+    this.raf = window.setTimeout(() => {
       // don't clobber a text box that is being typed in
-      if (!this.list.contains(document.activeElement)) this.render()
-    })
+      const active = document.activeElement
+      if (!this.list.contains(active) && !this.composer?.contains(active)) this.render()
+    }, 300)
   }
 
   // ----- view -----
@@ -172,15 +195,24 @@ export class CommentsPanel {
       .filter((c) => anchors.has(c.id))
       .sort((a, b) => anchors.get(a.id)!.from - anchors.get(b.id)!.from)
 
+    const sig = JSON.stringify([items.map((c) => [c.id, c.text, c.author, anchors.get(c.id)!.quote]), this.activeId, this.editing, this.draft?.quote, this.isCompact()])
+    if (sig === this.lastSig && !this.draft) return
+    this.lastSig = sig
     const out: HTMLElement[] = []
-    if (this.draft) out.push(this.draftCard(this.draft))
+    const toSheet = !!this.composer && this.isCompact()
+    if (this.draft && !toSheet) out.push(this.draftCard(this.draft))
     for (const c of items) out.push(this.card(c, anchors.get(c.id)!))
+    if (this.composer) {
+      this.composer.hidden = !(this.draft && toSheet)
+      this.composer.replaceChildren(...(this.draft && toSheet ? [this.draftCard(this.draft)] : []))
+    }
     if (!out.length) out.push(h('p', { className: 'side-empty' }, 'No comments yet. Select some text and press the 💬 button to add one.'))
     this.list.replaceChildren(...out)
   }
 
-  private draftCard(d: { quote: string }) {
-    const ta = h('textarea', { rows: 3, placeholder: 'Write a comment…' })
+  private draftCard(d: { quote: string; text?: string }) {
+    const ta = h('textarea', { rows: 3, placeholder: 'Write a comment…', value: d.text ?? '' })
+    ta.addEventListener('input', () => (d.text = ta.value))
     const save = h('button', { className: 'btn primary', type: 'button', textContent: 'Comment' })
     const cancel = h('button', { className: 'btn', type: 'button', textContent: 'Cancel' })
     save.addEventListener('click', () => this.commitDraft(ta.value))
