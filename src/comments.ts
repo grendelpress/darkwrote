@@ -2,6 +2,9 @@ import type { Editor } from '@tiptap/core'
 import type { CommentData } from './docx/import'
 
 const AUTHOR_KEY = 'darkwrote.author'
+const DEFAULT_AUTHOR = 'Susan R'
+/** The name earlier versions used when none was set. */
+const OLD_DEFAULT_AUTHOR = 'Author'
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, props: Record<string, any> = {}, ...children: (Node | string)[]): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag)
@@ -18,9 +21,10 @@ interface Anchor {
 
 export function getAuthor(): string {
   try {
-    return localStorage.getItem(AUTHOR_KEY) || 'Author'
+    const saved = localStorage.getItem(AUTHOR_KEY)
+    return saved && saved !== OLD_DEFAULT_AUTHOR ? saved : DEFAULT_AUTHOR
   } catch {
-    return 'Author'
+    return DEFAULT_AUTHOR
   }
 }
 
@@ -53,7 +57,7 @@ export class CommentsPanel {
     this.nameInput = h('input', { type: 'text', value: getAuthor(), title: 'Name shown on your comments', placeholder: 'Your name' })
     this.nameInput.addEventListener('change', () => {
       try {
-        localStorage.setItem(AUTHOR_KEY, this.nameInput.value.trim() || 'Author')
+        localStorage.setItem(AUTHOR_KEY, this.nameInput.value.trim() || DEFAULT_AUTHOR)
       } catch {
         /* ignore */
       }
@@ -78,7 +82,9 @@ export class CommentsPanel {
   }
 
   setComments(comments: CommentData[]) {
-    this.store = new Map(comments.map((c) => [c.id, { ...c }]))
+    // comments you made under the old default name "Author" now carry your name
+    const me = this.nameInput.value.trim() || DEFAULT_AUTHOR
+    this.store = new Map(comments.map((c) => [c.id, { ...c, author: !c.imported && c.author === OLD_DEFAULT_AUTHOR ? me : c.author }]))
     this.draft = null
     this.editing = null
     this.activeId = null
@@ -116,7 +122,7 @@ export class CommentsPanel {
     const d = this.draft
     if (!d || !text.trim()) return
     const id = newId()
-    this.store.set(id, { id, author: this.nameInput.value.trim() || 'Author', date: new Date().toISOString(), text: text.trim() })
+    this.store.set(id, { id, author: this.nameInput.value.trim() || DEFAULT_AUTHOR, date: new Date().toISOString(), text: text.trim() })
     const markType = this.editor.schema.marks.comment
     this.editor.view.dispatch(this.editor.state.tr.addMark(d.from, d.to, markType.create({ commentId: id })))
     this.draft = null
