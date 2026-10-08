@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -34,8 +35,17 @@ function offlineServiceWorker(): Plugin {
   }
 }
 
+function buildId(): string {
+  try {
+    return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+  } catch {
+    return new Date().toISOString().slice(0, 16)
+  }
+}
+
 export default defineConfig({
   base: './',
+  define: { __BUILD_ID__: JSON.stringify(buildId()) },
   plugins: [offlineServiceWorker()],
   test: { environment: 'jsdom' },
 })

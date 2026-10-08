@@ -707,6 +707,8 @@ window.addEventListener('drop', (e) => {
   if (file) void loadFile(file, null)
 })
 
+$('version').textContent = `Version ${typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev'}`
+
 // ---------- app install / offline / shared files ----------
 registerServiceWorker(() => toast('A new version is ready — reload to update', false, { label: 'Reload', run: () => location.reload() }))
 setupInstallButton($<HTMLButtonElement>('btn-install'), toast)

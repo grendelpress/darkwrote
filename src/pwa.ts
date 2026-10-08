@@ -11,6 +11,10 @@ export function registerServiceWorker(onUpdated: () => void) {
     navigator.serviceWorker
       .register('./sw.js')
       .then((reg) => {
+        // look for a new version whenever the app is brought back to the foreground
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') void reg.update().catch(() => undefined)
+        })
         reg.addEventListener('updatefound', () => {
           const incoming = reg.installing
           incoming?.addEventListener('statechange', () => {
