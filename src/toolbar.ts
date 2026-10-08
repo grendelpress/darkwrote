@@ -118,7 +118,7 @@ export function buildToolbar(host: HTMLElement, editor: Editor, onAddComment: ()
     host.append(wrap, reset)
   }
   colorPicker('A', 'Text color', '#cc0000', (c) => chain().setColor(c).run(), () => chain().unsetColor().run())
-  colorPicker('🖍', 'Highlight', '#ffff00', (c) => chain().setHighlight({ color: c }).run(), () => chain().unsetHighlight().run())
+  colorPicker('🖍', 'Highlight', '#ffff00', (c) => chain().setHighlight({ color: c, user: true } as never).run(), () => chain().unsetHighlight().run())
   sep()
 
   for (const [label, name, value] of [

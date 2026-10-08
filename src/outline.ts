@@ -17,6 +17,7 @@ export class Outline {
     root: HTMLElement,
     private editor: Editor,
     private scroller: HTMLElement,
+    private onNavigate: () => void = () => {},
   ) {
     this.list = document.createElement('nav')
     this.list.className = 'outline-list'
@@ -26,13 +27,25 @@ export class Outline {
     root.replaceChildren(head, this.list)
 
     editor.on('update', () => this.schedule())
-    scroller.addEventListener('scroll', () => this.highlight(), { passive: true })
+    scroller.addEventListener('scroll', () => this.scheduleHighlight(), { passive: true })
     this.rebuild()
   }
 
+  private hlRaf = 0
+  private signature = ''
+
+  /** Typing triggers this on every keystroke, so wait for a pause before walking the document. */
   private schedule() {
-    cancelAnimationFrame(this.raf)
-    this.raf = requestAnimationFrame(() => this.rebuild())
+    window.clearTimeout(this.raf)
+    this.raf = window.setTimeout(() => this.rebuild(), 300)
+  }
+
+  private scheduleHighlight() {
+    if (this.hlRaf) return
+    this.hlRaf = requestAnimationFrame(() => {
+      this.hlRaf = 0
+      this.highlight()
+    })
   }
 
   rebuild() {
@@ -43,6 +56,13 @@ export class Outline {
       }
     })
     this.headings = found
+    // Rebuild the DOM only when headings themselves changed, not when other text was typed.
+    const signature = found.map((f) => `${f.level}:${f.text}`).join('\n')
+    if (signature === this.signature && this.items.length === found.length) {
+      this.highlight()
+      return
+    }
+    this.signature = signature
     const minLevel = Math.min(...found.map((f) => f.level), 6)
 
     this.list.replaceChildren()
@@ -80,7 +100,8 @@ export class Outline {
     this.editor.commands.setTextSelection(this.headings[i].pos + 1)
     const top = el.getBoundingClientRect().top - this.scroller.getBoundingClientRect().top + this.scroller.scrollTop - 16
     this.scroller.scrollTo({ top, behavior: 'smooth' })
-    this.editor.view.dom.focus({ preventScroll: true })
+    if (this.editor.isEditable) this.editor.view.dom.focus({ preventScroll: true })
+    this.onNavigate()
   }
 
   /** Mark the last heading at or above the top of the viewport. */

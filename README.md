@@ -23,6 +23,13 @@ Everything runs locally in your browser; files are never uploaded.
   into a readable range at display time only; the saved file keeps the original colours. Toggle this in
   *Customize…* → "Adapt document colours to theme".
 
+## Phone and foldable use (Android / Galaxy Z Fold)
+
+Installable and fully offline (PWA). Reading mode with reflowing text and adjustable size, touch selection bar
+with highlights and comments that stays above the keyboard, automatic saving of notes and reading position,
+"Share to Darkwrote" from other apps, and an **annotated export that patches the original `.docx`** instead of
+rebuilding it (so unsupported Word content is never lost). Step-by-step setup: [docs/FOLD.md](docs/FOLD.md).
+
 ## Development
 
 ```bash
@@ -33,6 +40,9 @@ npm run build   # type-check and build to dist/
 ```
 
 ## Known limitations
+
+Saving *annotations* (comments and highlights) never rebuilds the file: they are merged into the original package.
+The limitations below apply only when you edit the text and use the rebuilt export.
 
 Round-tripping is done by Darkwrote's own reader/writer, so features it doesn't model are dropped on save:
 headers/footers, footnotes, comments, tracked changes, text boxes/shapes, columns, custom paragraph spacing and
